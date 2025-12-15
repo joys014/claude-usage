@@ -1,0 +1,94 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main  # Trigger on every commit to main branch
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0, v1.1.0, etc.
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Build app
+      run: |
+        chmod +x build.sh
+        ./build.sh
+
+    - name: Create DMG
+      run: |
+        chmod +x create-dmg.sh
+        ./create-dmg.sh
+
+    - name: Get version from tag
+      id: get_version
+      run: |
+        if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        else
+          echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          build/ClaudeUsage.dmg
+        body: |
+          ## Claude Usage Menubar App ${{ steps.get_version.outputs.version }}
+
+          > 🤖 Built by Claude, for Claude
+
+          A macOS menubar application that displays your Claude API usage limits in real-time.
+
+          ### Installation
+
+          1. Download `ClaudeUsage.dmg` below
+          2. Open the DMG file
+          3. Drag `ClaudeUsage.app` to your Applications folder
+          4. Launch the app from Applications
+          5. Click the menubar icon and select "Settings..." to configure your Claude session key
+
+          ### Requirements
+
+          - macOS 13.0 or later
+
+          ### Getting Your Session Key
+
+          1. Open [claude.ai](https://claude.ai) in your browser
+          2. Open Developer Tools (Cmd+Option+I or F12)
+          3. Go to **Application** > **Cookies** > `https://claude.ai`
+          4. Find and copy the value of the `sessionKey` cookie
+          5. Paste it into the Settings window in the app
+
+          ### Features
+
+          - ✅ Smart usage indicators that compare actual vs expected usage based on time elapsed
+          - 📊 Track multiple metrics: 5-hour limit, 7-day limit (all models), 7-day limit (Sonnet)
+          - ⏰ Relative time display ("Resets in 4h 23m")
+          - 🔄 Auto-refresh every 5 minutes
+          - 💾 Persistent settings storage
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload DMG as Artifact
+      if: "!startsWith(github.ref, 'refs/tags/')"
+      uses: actions/upload-artifact@v4
+      with:
+        name: ClaudeUsage-${{ steps.get_version.outputs.version }}
+        path: build/ClaudeUsage.dmg
+        retention-days: 30

@@ -1,0 +1,56 @@
+name: Bump Version
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'Info.plist'
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Bump version in Info.plist
+      run: |
+        # Read current versions
+        SHORT_VERSION=$(grep -A1 CFBundleShortVersionString Info.plist | grep '<string>' | sed 's/.*<string>\(.*\)<\/string>/\1/')
+        BUILD_NUMBER=$(grep -A1 'CFBundleVersion' Info.plist | grep '<string>' | head -1 | sed 's/.*<string>\(.*\)<\/string>/\1/')
+
+        echo "Current version: $SHORT_VERSION (build $BUILD_NUMBER)"
+
+        # Bump patch version
+        IFS='.' read -ra PARTS <<< "$SHORT_VERSION"
+        MAJOR=${PARTS[0]:-0}
+        MINOR=${PARTS[1]:-1}
+        PATCH=${PARTS[2]:-0}
+        NEW_PATCH=$((PATCH + 1))
+        NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+
+        # Bump build number
+        NEW_BUILD=$((BUILD_NUMBER + 1))
+
+        echo "New version: $NEW_VERSION (build $NEW_BUILD)"
+
+        # Update Info.plist
+        sed -i "s|<key>CFBundleShortVersionString</key>|<key>CFBundleShortVersionString</key>|" Info.plist
+        sed -i "/<key>CFBundleShortVersionString<\/key>/{n;s|<string>.*</string>|<string>$NEW_VERSION</string>|}" Info.plist
+        sed -i "/<key>CFBundleVersion<\/key>/{n;s|<string>.*</string>|<string>$NEW_BUILD</string>|}" Info.plist
+
+        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "build=$NEW_BUILD" >> $GITHUB_OUTPUT
+      id: bump
+
+    - name: Commit version bump
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add Info.plist
+        git commit -m "Bump version to ${{ steps.bump.outputs.version }} (build ${{ steps.bump.outputs.build }})"
+        git push
