@@ -34,8 +34,8 @@ jobs:
 
         echo "Bumping $SHORT_VERSION -> $NEW_VERSION (build $NEW_BUILD)"
 
-        sed -i '' "/<key>CFBundleShortVersionString<\/key>/{n;s|<string>.*</string>|<string>$NEW_VERSION</string>|}" Info.plist
-        sed -i '' "/<key>CFBundleVersion<\/key>/{n;s|<string>.*</string>|<string>$NEW_BUILD</string>|}" Info.plist
+        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" Info.plist
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" Info.plist
 
         echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "build=$NEW_BUILD" >> $GITHUB_OUTPUT
