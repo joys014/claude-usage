@@ -1,3 +1,5 @@
+> [Depricated] : `/statusline` in claude is able to get this data so this tool is archived.
+
 # Claude Usage Menubar App
 
 > 🤖 Built by Claude, for Claude
